@@ -1,0 +1,79 @@
+#!/usr/bin/env node
+
+var path = require('path'),
+    fs = require('fs'),
+    program = require('commander'),
+    concat = require('source-map-concat'),
+    resolveSourceMapSync = require("source-map-resolve").resolveSourceMapSync,
+    createDummySourceMap = require("source-map-dummy"),
+    sourceMapReInner = "[#@] sourceMappingURL=([^\\s'\"]*)",
+    sourceMapRe = new RegExp([
+      "(?:",
+       "/\\*",
+       "(?:\\s*\\r?\\n(?://)?)?",
+       "(?:" + sourceMapReInner + ")",
+       "\\s*",
+       "\\*/",
+       "|",
+       "//(?:" + sourceMapReInner + ")",
+      ")",
+      "\\s*$"].join(""), 'g');
+
+program
+    .version('1.0.0')
+    .usage('<file ...>')
+    .option('-o, --output <outfile>', 'Output file')
+    .option('-d, --output_dir [output_dir]', "Final output directory, if different than output file's")
+    .parse(process.argv);
+
+if (!program.args.length) {
+    program.outputHelp();
+    process.exit(1);
+}
+
+var files = [];
+
+var output = path.resolve(program.output);
+
+program.args.forEach(function(f) {
+    if (!fs.statSync(f).isFile()) {
+        throw new Error("File is not a file: " + f);
+    }
+    files.push({
+        source: path.resolve(f),
+        code: fs.readFileSync(f).toString()
+    });
+});
+
+files.forEach(function(file) {
+    var previousMap = resolveSourceMapSync(file.code, file.source, fs.readFileSync);
+    if (previousMap) {
+        file.map = previousMap.map;
+        file.sourcesRelativeTo = previousMap.sourcesRelativeTo;
+        file.code = file.code.replace(sourceMapRe, '');
+    } else {
+        file.map = createDummySourceMap(file.code, {
+            source: path.basename(file.source),
+            type: "js"
+        });
+        file.sourcesRelativeTo = file.source;
+    }
+});
+
+var mapPath = output + ".map";
+
+if (program.output_dir) {
+    mapPath = path.join(program.output_dir, path.basename(output) + ".map");
+}
+
+var concatenated = concat(files, {
+    delimiter: "\n",
+    mapPath: mapPath
+});
+
+var result = concatenated.toStringWithSourceMap({
+    file: path.basename(output)
+});
+
+fs.writeFileSync(output, result.code);
+fs.writeFileSync(output + ".map", result.map.toString());
