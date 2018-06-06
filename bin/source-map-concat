@@ -57,38 +57,38 @@ program.args.forEach(function (f) {
             code: fs.readFileSync(f).toString()
         });
     }
-
-    files.forEach(function (file) {
-        var previousMap = resolveSourceMapSync(file.code, file.source, fs.readFileSync);
-        if (previousMap) {
-            file.map = previousMap.map;
-            file.sourcesRelativeTo = previousMap.sourcesRelativeTo;
-            file.code = file.code.replace(sourceMapRe, '');
-        } else {
-            file.map = createDummySourceMap(file.code, {
-                source: path.basename(file.source),
-                type: "js"
-            });
-            file.sourcesRelativeTo = file.source;
-        }
-    });
-
-    var mapPath = output + ".map";
-
-    if (program.output_dir) {
-        mapPath = path.join(program.output_dir, path.basename(output) + ".map");
-    }
-
-    // Wrap this is a JSON.parse so it interprets \n, \t, etc.
-    var concatenated = concat(files, {
-        delimiter: JSON.parse('"' + program.delimiter + '"'),
-        mapPath: mapPath
-    });
-
-    var result = concatenated.toStringWithSourceMap({
-        file: path.basename(output)
-    });
-
-    fs.writeFileSync(output, result.code);
-    fs.writeFileSync(output + ".map", result.map.toString());
 });
+
+files.forEach(function (file) {
+    var previousMap = resolveSourceMapSync(file.code, file.source, fs.readFileSync);
+    if (previousMap) {
+        file.map = previousMap.map;
+        file.sourcesRelativeTo = previousMap.sourcesRelativeTo;
+        file.code = file.code.replace(sourceMapRe, '');
+    } else {
+        file.map = createDummySourceMap(file.code, {
+            source: path.basename(file.source),
+            type: "js"
+        });
+        file.sourcesRelativeTo = file.source;
+    }
+});
+
+var mapPath = output + ".map";
+
+if (program.output_dir) {
+    mapPath = path.join(program.output_dir, path.basename(output) + ".map");
+}
+
+// Wrap this is a JSON.parse so it interprets \n, \t, etc.
+var concatenated = concat(files, {
+    delimiter: JSON.parse('"' + program.delimiter + '"'),
+    mapPath: mapPath
+});
+
+var result = concatenated.toStringWithSourceMap({
+    file: path.basename(output)
+});
+
+fs.writeFileSync(output, result.code);
+fs.writeFileSync(output + ".map", result.map.toString());
