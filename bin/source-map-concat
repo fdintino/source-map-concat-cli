@@ -25,7 +25,7 @@ program
     .usage('<file ...>')
     .option('-o, --output <outfile>', 'Output file')
     .option('-d, --output_dir [output_dir]', "Final output directory, if different than output file's")
-    .option('-l --delimiter <string>', 'Delimiter', '"\\n"')
+    .option('-l, --delimiter <string>', 'Delimiter', '\\n')
     .parse(process.argv);
 
 if (!program.args.length) {
