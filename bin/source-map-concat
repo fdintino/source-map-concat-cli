@@ -4,26 +4,28 @@ var path = require('path'),
     fs = require('fs'),
     program = require('commander'),
     concat = require('source-map-concat'),
+    glob = require('glob'),
     resolveSourceMapSync = require("source-map-resolve").resolveSourceMapSync,
     createDummySourceMap = require("source-map-dummy"),
     sourceMapReInner = "[#@] sourceMappingURL=([^\\s'\"]*)",
     sourceMapRe = new RegExp([
-      "(?:",
-       "/\\*",
-       "(?:\\s*\\r?\\n(?://)?)?",
-       "(?:" + sourceMapReInner + ")",
-       "\\s*",
-       "\\*/",
-       "|",
-       "//(?:" + sourceMapReInner + ")",
-      ")",
-      "\\s*$"].join(""), 'g');
+        "(?:",
+        "/\\*",
+        "(?:\\s*\\r?\\n(?://)?)?",
+        "(?:" + sourceMapReInner + ")",
+        "\\s*",
+        "\\*/",
+        "|",
+        "//(?:" + sourceMapReInner + ")",
+        ")",
+        "\\s*$"].join(""), 'g');
 
 program
     .version('1.0.0')
     .usage('<file ...>')
     .option('-o, --output <outfile>', 'Output file')
     .option('-d, --output_dir [output_dir]', "Final output directory, if different than output file's")
+    .option('-l, --delimiter <string>', 'Delimiter', '\\n')
     .parse(process.argv);
 
 if (!program.args.length) {
@@ -35,17 +37,29 @@ var files = [];
 
 var output = path.resolve(program.output);
 
-program.args.forEach(function(f) {
-    if (!fs.statSync(f).isFile()) {
-        throw new Error("File is not a file: " + f);
+program.args.forEach(function (f) {
+
+    if (glob.hasMagic(f)) {
+        var matches = glob.sync(f);
+        matches.forEach(function (element) {
+            files.push({
+                source: path.resolve(element),
+                code: fs.readFileSync(element).toString()
+            });
+        });
     }
-    files.push({
-        source: path.resolve(f),
-        code: fs.readFileSync(f).toString()
-    });
+    else if (!fs.statSync(f).isFile()) {
+        throw new Error("Argument is neither a glob nor a file: " + f);
+    }
+    else {
+        files.push({
+            source: path.resolve(f),
+            code: fs.readFileSync(f).toString()
+        });
+    }
 });
 
-files.forEach(function(file) {
+files.forEach(function (file) {
     var previousMap = resolveSourceMapSync(file.code, file.source, fs.readFileSync);
     if (previousMap) {
         file.map = previousMap.map;
@@ -66,8 +80,9 @@ if (program.output_dir) {
     mapPath = path.join(program.output_dir, path.basename(output) + ".map");
 }
 
+// Wrap this is a JSON.parse so it interprets \n, \t, etc.
 var concatenated = concat(files, {
-    delimiter: "\n",
+    delimiter: JSON.parse('"' + program.delimiter + '"'),
     mapPath: mapPath
 });
 

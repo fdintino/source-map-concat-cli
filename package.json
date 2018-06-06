@@ -17,10 +17,13 @@
     "concatenate",
     "concat",
     "cat",
-    "mapcat"
+    "mapcat",
+    "glob",
+    "globbing"
   ],
   "dependencies": {
     "commander": "^2.9.0",
+    "glob": "^7.1.2",
     "source-map": "^0.5.3",
     "source-map-concat": "^1.0.0",
     "source-map-dummy": "^1.0.0",
